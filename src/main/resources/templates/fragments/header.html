@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:fragment="head(title)">
+    <meta charset="UTF-8">
+    <title th:text="${title}">Lokora</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<header th:fragment="header">
+    <strong>Lokora</strong>
+    <span sec:authorize="isAuthenticated()"> | Signed in as <span sec:authentication="name"></span></span>
+    <div class="actions" style="margin-top: 0.75rem;">
+        <a class="button secondary" th:href="@{/}">Home</a>
+        <a class="button secondary" th:href="@{/resources}">Resources</a>
+        <a class="button secondary" sec:authorize="isAuthenticated()" th:href="@{/reservations/mine}">My reservations</a>
+        <a class="button" sec:authorize="!isAuthenticated()" th:href="@{/oauth2/authorization/keycloak}">Sign in</a>
+        <form sec:authorize="isAuthenticated()" th:action="@{/logout}" method="post" style="display:inline;">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            <button type="submit">Sign out</button>
+        </form>
+    </div>
+</header>
+</body>
+</html>

@@ -1,0 +1,54 @@
+{
+  "realm": "lokora",
+  "enabled": true,
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "accessTokenLifespan": 86400,
+  "ssoSessionIdleTimeout": 86400,
+  "ssoSessionMaxLifespan": 86400,
+  "roles": {
+    "client": {
+      "lokora-app": [
+        {
+          "name": "EMPLOYEE",
+          "description": "Employee role",
+          "composite": false,
+          "clientRole": true
+        },
+        {
+          "name": "WORKSPACE_ADMIN",
+          "description": "Workspace administrator",
+          "composite": true,
+          "composites": {
+            "client": {
+              "lokora-app": [
+                "EMPLOYEE"
+              ]
+            }
+          },
+          "clientRole": true
+        }
+      ]
+    }
+  },
+  "clients": [
+    {
+      "clientId": "lokora-app",
+      "name": "Lokora Application",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "redirectUris": [
+        "http://localhost:8080/login/oauth2/code/keycloak"
+      ],
+      "webOrigins": [
+        "http://localhost:8080"
+      ],
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "fullScopeAllowed": true
+    }
+  ]
+}

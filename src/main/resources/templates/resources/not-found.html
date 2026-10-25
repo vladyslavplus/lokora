@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/header :: head('Not found')}"></head>
+<body>
+<header th:replace="~{fragments/header :: header}"></header>
+<main>
+    <div class="card">
+        <h1>Resource not found</h1>
+        <p class="error" th:text="${message}">Workspace resource not found</p>
+        <a class="button secondary" th:href="@{/resources}">Back to list</a>
+    </div>
+</main>
+</body>
+</html>

@@ -1,0 +1,77 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-create-reservation
+      author: lokora
+      changes:
+        - createTable:
+            tableName: reservation
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_reservation
+                    nullable: false
+              - column:
+                  name: resource_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: start_time
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+              - column:
+                  name: end_time
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: varchar(32)
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: reservation
+            baseColumnNames: resource_id
+            constraintName: fk_reservation_resource
+            referencedTableName: workspace_resource
+            referencedColumnNames: id
+            onDelete: RESTRICT
+        - sql:
+            dbms: postgresql
+            sql: >
+              ALTER TABLE reservation
+              ADD CONSTRAINT chk_reservation_time_range CHECK (start_time < end_time);
+        - sql:
+            dbms: postgresql
+            sql: >
+              ALTER TABLE reservation
+              ADD CONSTRAINT chk_reservation_status CHECK (status IN ('ACTIVE', 'CANCELLED'));
+        - createIndex:
+            indexName: idx_reservation_resource_active_window
+            tableName: reservation
+            columns:
+              - column:
+                  name: resource_id
+              - column:
+                  name: status
+              - column:
+                  name: start_time
+              - column:
+                  name: end_time
+        - createIndex:
+            indexName: idx_reservation_user_start
+            tableName: reservation
+            columns:
+              - column:
+                  name: user_id
+              - column:
+                  name: start_time

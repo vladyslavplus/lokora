@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>Lokora</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<header>
+    <strong>Lokora</strong>
+    <div class="actions" style="margin-top: 0.75rem;">
+        <a class="button secondary" th:href="@{/resources}">Resources</a>
+        <a class="button" sec:authorize="!isAuthenticated()" th:href="@{/oauth2/authorization/keycloak}">Sign in</a>
+        <form sec:authorize="isAuthenticated()" th:action="@{/logout}" method="post" style="display:inline;">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            <button type="submit">Sign out</button>
+        </form>
+    </div>
+</header>
+<main>
+    <div class="card">
+        <h1>Workspace resource management</h1>
+        <p>Sign in with Keycloak to browse workspace resources. Administrators can manage resources through the UI.</p>
+        <div class="actions">
+            <a class="button" sec:authorize="!isAuthenticated()" th:href="@{/oauth2/authorization/keycloak}">Sign in with Keycloak</a>
+            <a class="button" sec:authorize="isAuthenticated()" th:href="@{/resources}">Browse resources</a>
+        </div>
+    </div>
+</main>
+</body>
+</html>

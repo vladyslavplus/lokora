@@ -1,0 +1,80 @@
+# Maven build output
+/target/
+**/target/
+
+# Maven release plugin
+pom.xml.releaseBackup
+release.properties
+dependency-reduced-pom.xml
+.flattened-pom.xml
+
+# Java runtime and crash output
+*.class
+*.log
+hs_err_pid*
+replay_pid*
+*.hprof
+
+# IntelliJ IDEA
+/.idea/
+*.iml
+*.iws
+*.ipr
+/out/
+
+# Eclipse and Spring Tool Suite
+.classpath
+.project
+.settings/
+.apt_generated/
+.factorypath
+.springBeans
+.sts4-cache/
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+
+# Visual Studio Code
+/.vscode/
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.local
+*.jks
+*.p12
+*.pfx
+*.pem
+*.key
+src/main/resources/application-local.properties
+src/main/resources/application-local.yml
+src/main/resources/application-local.yaml
+src/main/resources/application-secrets.properties
+src/main/resources/application-secrets.yml
+src/main/resources/application-secrets.yaml
+http-client.private.env.json
+*.private.env.json
+config/keycloak/lokora-realm.local.json
+
+# Local runtime data
+/logs/
+/tmp/
+*.db
+*.sqlite
+*.sqlite3
+
+# Test and analysis output outside Maven target
+/.scannerwork/
+/.sonar/
+/coverage/
+/allure-results/
+/allure-report/

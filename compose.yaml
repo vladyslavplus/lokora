@@ -1,0 +1,45 @@
+services:
+  postgres:
+    image: postgres:17
+    command: sh -c "ln -sf /usr/share/zoneinfo/Europe/Kyiv /usr/share/zoneinfo/Europe/Kiev && exec docker-entrypoint.sh postgres"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lokora}
+      POSTGRES_USER: ${POSTGRES_USER:-lokora}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lokora}
+    ports:
+      - "5433:5432"
+    volumes:
+      - lokora_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.4
+    command: start-dev --import-realm --http-port=8180
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "8180:8180"
+    volumes:
+      - ${LOKORA_KEYCLOAK_REALM_IMPORT:-./config/keycloak/lokora-realm.json}:/opt/keycloak/data/import/lokora-realm.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+volumes:
+  lokora_pg_data:

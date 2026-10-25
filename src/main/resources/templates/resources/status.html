@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/header :: head('Change status')}"></head>
+<body>
+<header th:replace="~{fragments/header :: header}"></header>
+<main>
+    <div class="card">
+        <h1 th:text="'Change status for ' + ${resource.name()}">Change status</h1>
+        <form th:action="@{/resources/{id}/status(id=${resource.id()})}" th:object="${form}" method="post">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            <label for="status">Status</label>
+            <select id="status" th:field="*{status}">
+                <option th:each="statusOption : ${T(com.vladyslavplus.lokora.resource.ResourceStatus).values()}"
+                        th:value="${statusOption}" th:text="${statusOption}"></option>
+            </select>
+            <p class="field-error" th:if="${#fields.hasErrors('status')}" th:errors="*{status}"></p>
+            <div class="actions" style="margin-top: 1rem;">
+                <button type="submit">Update status</button>
+                <a class="button secondary" th:href="@{/resources/{id}(id=${resource.id()})}">Cancel</a>
+            </div>
+        </form>
+    </div>
+</main>
+</body>
+</html>

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/header :: head('Reservation not found')}"></head>
+<body>
+<header th:replace="~{fragments/header :: header}"></header>
+<main>
+    <div class="card">
+        <h1>Reservation not found</h1>
+        <p th:text="${message}">Not found</p>
+        <a class="button secondary" th:href="@{/reservations/mine}">My reservations</a>
+    </div>
+</main>
+</body>
+</html>

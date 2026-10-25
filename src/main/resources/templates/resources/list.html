@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments/header :: head('Resources')}"></head>
+<body>
+<header th:replace="~{fragments/header :: header}"></header>
+<main>
+    <div class="card">
+        <h1>Resources</h1>
+        <div class="actions" sec:authorize="hasRole('WORKSPACE_ADMIN')">
+            <a class="button" th:href="@{/resources/new}">Create resource</a>
+        </div>
+        <table>
+            <thead>
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Location</th>
+                <th>Status</th>
+                <th>Capacity</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="resource : ${page.content()}">
+                <td th:text="${resource.name()}">Desk</td>
+                <td th:text="${resource.type()}">DESK</td>
+                <td th:text="${resource.location()}">Floor 1</td>
+                <td th:text="${resource.status()}">AVAILABLE</td>
+                <td th:text="${resource.capacity()}">1</td>
+                <td><a th:href="@{/resources/{id}(id=${resource.id()})}">View</a></td>
+            </tr>
+            </tbody>
+        </table>
+        <p th:if="${#lists.isEmpty(page.content())}">No resources found.</p>
+        <div class="actions">
+            <a class="button secondary"
+               th:if="${page.page() > 0}"
+               th:href="@{/resources(page=${page.page() - 1}, size=${page.size()})}">Previous</a>
+            <span th:text="'Page ' + (${page.page()} + 1) + ' of ' + ${page.totalPages()}"></span>
+            <a class="button secondary"
+               th:if="${page.page() + 1 < page.totalPages()}"
+               th:href="@{/resources(page=${page.page() + 1}, size=${page.size()})}">Next</a>
+        </div>
+    </div>
+</main>
+</body>
+</html>

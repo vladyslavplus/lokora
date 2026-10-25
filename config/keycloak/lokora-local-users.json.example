@@ -1,0 +1,45 @@
+{
+  "realm": "lokora",
+  "users": [
+    {
+      "username": "employee",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Lab",
+      "lastName": "Employee",
+      "email": "employee@example.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "REPLACE_WITH_LOCAL_PASSWORD",
+          "temporary": true
+        }
+      ],
+      "clientRoles": {
+        "lokora-app": [
+          "EMPLOYEE"
+        ]
+      }
+    },
+    {
+      "username": "workspace-admin",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Lab",
+      "lastName": "Admin",
+      "email": "admin@example.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "REPLACE_WITH_LOCAL_PASSWORD",
+          "temporary": true
+        }
+      ],
+      "clientRoles": {
+        "lokora-app": [
+          "WORKSPACE_ADMIN"
+        ]
+      }
+    }
+  ]
+}

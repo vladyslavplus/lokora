@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/header :: head('Resource details')}"></head>
+<body>
+<header th:replace="~{fragments/header :: header}"></header>
+<main>
+    <div class="card">
+        <h1 th:text="${resource.name()}">Resource</h1>
+        <p><strong>Type:</strong> <span th:text="${resource.type()}"></span></p>
+        <p><strong>Location:</strong> <span th:text="${resource.location()}"></span></p>
+        <p><strong>Status:</strong> <span th:text="${resource.status()}"></span></p>
+        <p><strong>Capacity:</strong> <span th:text="${resource.capacity()}"></span></p>
+        <div class="actions" sec:authorize="isAuthenticated()" xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+             th:if="${resource.status().name() == 'AVAILABLE'}">
+            <a class="button" th:href="@{/resources/{id}/reserve(id=${resource.id()})}">Reserve</a>
+        </div>
+        <div class="actions" sec:authorize="hasRole('WORKSPACE_ADMIN')" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+            <a class="button secondary" th:href="@{/resources/{id}/edit(id=${resource.id()})}">Edit</a>
+            <a class="button secondary" th:href="@{/resources/{id}/status(id=${resource.id()})}">Change status</a>
+            <form th:action="@{/resources/{id}/delete(id=${resource.id()})}" method="post"
+                  onsubmit="return confirm('Delete this resource?');">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                <button type="submit">Delete</button>
+            </form>
+        </div>
+        <a class="button secondary" th:href="@{/resources}">Back to list</a>
+    </div>
+</main>
+</body>
+</html>

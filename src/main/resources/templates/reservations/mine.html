@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/header :: head('My reservations')}"></head>
+<body>
+<header th:replace="~{fragments/header :: header}"></header>
+<main>
+    <div class="card">
+        <h1>My reservations</h1>
+        <p th:if="${message}" th:text="${message}"></p>
+        <p th:if="${errorMessage}" class="error" th:text="${errorMessage}"></p>
+        <table>
+            <thead>
+            <tr>
+                <th>Resource</th>
+                <th>Start</th>
+                <th>End</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="reservation : ${page.content()}">
+                <td><a th:href="@{/resources/{id}(id=${reservation.resourceId()})}" th:text="${reservation.resourceId()}"></a></td>
+                <td th:text="${reservation.startTime()}"></td>
+                <td th:text="${reservation.endTime()}"></td>
+                <td th:text="${reservation.status()}"></td>
+                <td>
+                    <form th:if="${reservation.status().name() == 'ACTIVE'}"
+                          th:action="@{/reservations/{id}/cancel(id=${reservation.id()})}" method="post">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                        <button type="submit">Cancel</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        <p th:if="${#lists.isEmpty(page.content())}">You have no reservations yet.</p>
+        <div class="actions">
+            <a class="button secondary"
+               th:if="${page.page() > 0}"
+               th:href="@{/reservations/mine(page=${page.page() - 1}, size=${page.size()})}">Previous</a>
+            <span th:text="'Page ' + (${page.page()} + 1) + ' of ' + ${page.totalPages()}"></span>
+            <a class="button secondary"
+               th:if="${page.page() + 1 < page.totalPages()}"
+               th:href="@{/reservations/mine(page=${page.page() + 1}, size=${page.size()})}">Next</a>
+        </div>
+        <a class="button secondary" th:href="@{/resources}">Browse resources</a>
+    </div>
+</main>
+</body>
+</html>

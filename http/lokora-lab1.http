@@ -1,0 +1,155 @@
+@host = {{host}}
+
+### Resource reads
+GET {{host}}/api/resources
+Authorization: Bearer {{adminToken}}
+
+###
+GET {{host}}/api/resources/{{resourceId}}
+Authorization: Bearer {{employeeToken}}
+
+### Administrator mutations: copy created resource ID to resourceId (201)
+POST {{host}}/api/resources
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Lab Desk",
+  "type": "DESK",
+  "location": "Floor 2",
+  "capacity": 1
+}
+
+###
+PUT {{host}}/api/resources/{{resourceId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Updated Desk",
+  "type": "DESK",
+  "location": "Floor 2",
+  "capacity": 2
+}
+
+###
+PATCH {{host}}/api/resources/{{resourceId}}/status
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "status": "MAINTENANCE"
+}
+
+### Create a second resource (201); copy its ID to deletableResourceId
+POST {{host}}/api/resources
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Disposable Desk",
+  "type": "DESK",
+  "location": "Floor 4",
+  "capacity": 1
+}
+
+### Delete second resource before any booking (204)
+DELETE {{host}}/api/resources/{{deletableResourceId}}
+Authorization: Bearer {{adminToken}}
+
+### No bearer token: unauthenticated API (401)
+GET {{host}}/api/resources
+
+### Valid employee bearer token, no UI session (200)
+GET {{host}}/api/resources
+Authorization: Bearer {{employeeToken}}
+
+### URL security: employee cannot create resource (403)
+POST {{host}}/api/resources
+Authorization: Bearer {{employeeToken}}
+Content-Type: application/json
+
+{
+  "name": "Forbidden Desk",
+  "type": "DESK",
+  "location": "Floor 3",
+  "capacity": 1
+}
+
+### Method security: employee cannot change status (403)
+PATCH {{host}}/api/resources/{{resourceId}}/status
+Authorization: Bearer {{employeeToken}}
+Content-Type: application/json
+
+{
+  "status": "OUT_OF_SERVICE"
+}
+
+### Restore AVAILABLE before reservation scenarios (200)
+PATCH {{host}}/api/resources/{{resourceId}}/status
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "status": "AVAILABLE"
+}
+
+### Reservation: employee creates active booking (201); copy response id to reservationId
+POST {{host}}/api/reservations
+Authorization: Bearer {{employeeToken}}
+Content-Type: application/json
+
+{
+  "resourceId": "{{resourceId}}",
+  "startTime": "{{startTime}}",
+  "endTime": "{{endTime}}"
+}
+
+### Same resource and interval: overlap (409)
+POST {{host}}/api/reservations
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "resourceId": "{{resourceId}}",
+  "startTime": "{{startTime}}",
+  "endTime": "{{endTime}}"
+}
+
+### Adjacent interval: no overlap (201); copy response id to adminReservationId
+POST {{host}}/api/reservations
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "resourceId": "{{resourceId}}",
+  "startTime": "{{endTime}}",
+  "endTime": "{{adjacentEndTime}}"
+}
+
+### Invalid zero-length interval (400)
+POST {{host}}/api/reservations
+Authorization: Bearer {{employeeToken}}
+Content-Type: application/json
+
+{
+  "resourceId": "{{resourceId}}",
+  "startTime": "{{startTime}}",
+  "endTime": "{{startTime}}"
+}
+
+### Employee sees only own bookings (200)
+GET {{host}}/api/reservations/mine
+Authorization: Bearer {{employeeToken}}
+
+### Employee cannot cancel administrator booking (403)
+POST {{host}}/api/reservations/{{adminReservationId}}/cancel
+Authorization: Bearer {{employeeToken}}
+
+### Owner cancels booking (200); repeat returns 409
+POST {{host}}/api/reservations/{{reservationId}}/cancel
+Authorization: Bearer {{employeeToken}}
+
+### Resource with reservation history cannot be deleted (409)
+DELETE {{host}}/api/resources/{{resourceId}}
+Authorization: Bearer {{adminToken}}
