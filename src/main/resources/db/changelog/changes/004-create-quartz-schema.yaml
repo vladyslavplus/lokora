@@ -1,0 +1,10 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004-create-quartz-schema
+      author: lokora
+      changes:
+        - sqlFile:
+            path: 004-create-quartz-schema.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: true

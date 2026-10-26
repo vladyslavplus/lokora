@@ -363,7 +363,7 @@ class ReservationServiceTest {
     @Test
     void cancelAllowsOwnerToCancelFutureActiveReservation() {
         Reservation reservation = activeReservation(USER_SUBJECT, FIXED_NOW.plusSeconds(3600), FIXED_NOW.plusSeconds(7200));
-        when(reservationRepository.findById(RESERVATION_ID)).thenReturn(Optional.of(reservation));
+        when(reservationRepository.findByIdForUpdate(RESERVATION_ID)).thenReturn(Optional.of(reservation));
         when(currentUserAccessor.getSubject()).thenReturn(Optional.of(USER_SUBJECT));
         when(currentUserAccessor.isWorkspaceAdmin()).thenReturn(false);
         when(reservationRepository.save(reservation)).thenReturn(reservation);
@@ -373,6 +373,7 @@ class ReservationServiceTest {
 
         assertThat(reservation.getStatus()).isEqualTo(ReservationStatus.CANCELLED);
         assertThat(response.status()).isEqualTo(ReservationStatus.CANCELLED);
+        verify(reservationRepository).findByIdForUpdate(RESERVATION_ID);
         verify(reservationRepository).save(reservation);
     }
 
@@ -383,7 +384,7 @@ class ReservationServiceTest {
                 FIXED_NOW.minusSeconds(600),
                 FIXED_NOW.plusSeconds(600)
         );
-        when(reservationRepository.findById(RESERVATION_ID)).thenReturn(Optional.of(reservation));
+        when(reservationRepository.findByIdForUpdate(RESERVATION_ID)).thenReturn(Optional.of(reservation));
         when(currentUserAccessor.getSubject()).thenReturn(Optional.of(USER_SUBJECT));
         when(reservationRepository.save(reservation)).thenReturn(reservation);
         when(mapper.toResponse(reservation)).thenAnswer(invocation -> toResponse(invocation.getArgument(0)));
@@ -397,7 +398,7 @@ class ReservationServiceTest {
     @Test
     void cancelAllowsAdminToCancelAnotherUsersReservation() {
         Reservation reservation = activeReservation("other-user", FIXED_NOW.plusSeconds(3600), FIXED_NOW.plusSeconds(7200));
-        when(reservationRepository.findById(RESERVATION_ID)).thenReturn(Optional.of(reservation));
+        when(reservationRepository.findByIdForUpdate(RESERVATION_ID)).thenReturn(Optional.of(reservation));
         when(currentUserAccessor.getSubject()).thenReturn(Optional.of(USER_SUBJECT));
         when(currentUserAccessor.isWorkspaceAdmin()).thenReturn(true);
         when(reservationRepository.save(reservation)).thenReturn(reservation);
@@ -411,7 +412,7 @@ class ReservationServiceTest {
 
     @Test
     void cancelThrowsWhenReservationMissing() {
-        when(reservationRepository.findById(RESERVATION_ID)).thenReturn(Optional.empty());
+        when(reservationRepository.findByIdForUpdate(RESERVATION_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.cancel(RESERVATION_ID))
                 .isInstanceOf(ReservationNotFoundException.class);
@@ -422,7 +423,7 @@ class ReservationServiceTest {
     @Test
     void cancelThrowsForNonOwnerEmployee() {
         Reservation reservation = activeReservation("other-user", FIXED_NOW.plusSeconds(3600), FIXED_NOW.plusSeconds(7200));
-        when(reservationRepository.findById(RESERVATION_ID)).thenReturn(Optional.of(reservation));
+        when(reservationRepository.findByIdForUpdate(RESERVATION_ID)).thenReturn(Optional.of(reservation));
         when(currentUserAccessor.getSubject()).thenReturn(Optional.of(USER_SUBJECT));
         when(currentUserAccessor.isWorkspaceAdmin()).thenReturn(false);
 
@@ -436,7 +437,7 @@ class ReservationServiceTest {
     void cancelThrowsWhenReservationAlreadyCancelled() {
         Reservation reservation = activeReservation(USER_SUBJECT, FIXED_NOW.plusSeconds(3600), FIXED_NOW.plusSeconds(7200));
         reservation.setStatus(ReservationStatus.CANCELLED);
-        when(reservationRepository.findById(RESERVATION_ID)).thenReturn(Optional.of(reservation));
+        when(reservationRepository.findByIdForUpdate(RESERVATION_ID)).thenReturn(Optional.of(reservation));
 
         assertThatThrownBy(() -> service.cancel(RESERVATION_ID))
                 .isInstanceOf(ReservationStateConflictException.class);
@@ -451,7 +452,7 @@ class ReservationServiceTest {
                 FIXED_NOW.minusSeconds(7200),
                 FIXED_NOW.minusSeconds(3600)
         );
-        when(reservationRepository.findById(RESERVATION_ID)).thenReturn(Optional.of(reservation));
+        when(reservationRepository.findByIdForUpdate(RESERVATION_ID)).thenReturn(Optional.of(reservation));
         when(currentUserAccessor.getSubject()).thenReturn(Optional.of(USER_SUBJECT));
 
         assertThatThrownBy(() -> service.cancel(RESERVATION_ID))

@@ -1,0 +1,13 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-complete-reservation-status
+      author: lokora
+      changes:
+        - sql:
+            dbms: postgresql
+            sql: ALTER TABLE reservation DROP CONSTRAINT chk_reservation_status;
+        - sql:
+            dbms: postgresql
+            sql: >
+              ALTER TABLE reservation ADD CONSTRAINT chk_reservation_status
+              CHECK (status IN ('ACTIVE', 'CANCELLED', 'COMPLETED'));

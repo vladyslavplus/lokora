@@ -130,7 +130,7 @@ public class ReservationService {
     @PublishReservationOutcome(action = "CANCELLED")
     public ReservationResponse cancel(UUID id) {
         Instant now = clock.instant();
-        Reservation reservation = reservationRepository.findById(id)
+        Reservation reservation = reservationRepository.findByIdForUpdate(id)
                 .orElseThrow(ReservationNotFoundException::new);
 
         if (reservation.getStatus() != ReservationStatus.ACTIVE) {

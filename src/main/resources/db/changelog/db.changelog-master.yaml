@@ -3,3 +3,7 @@ databaseChangeLog:
       file: db/changelog/changes/001-create-workspace-resource.yaml
   - include:
       file: db/changelog/changes/002-create-reservation.yaml
+  - include:
+      file: db/changelog/changes/003-complete-reservation-status.yaml
+  - include:
+      file: db/changelog/changes/004-create-quartz-schema.yaml
