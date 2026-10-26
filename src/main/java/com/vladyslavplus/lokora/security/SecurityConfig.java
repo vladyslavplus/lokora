@@ -76,6 +76,8 @@ public class SecurityConfig {
                         .hasAnyRole("EMPLOYEE", "WORKSPACE_ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/reservations/*/cancel")
                         .hasAnyRole("EMPLOYEE", "WORKSPACE_ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/reservations/*/confirmation")
+                        .hasAnyRole("EMPLOYEE", "WORKSPACE_ADMIN")
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2

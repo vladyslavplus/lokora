@@ -113,6 +113,17 @@ public class ReservationService {
         );
     }
 
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'WORKSPACE_ADMIN')")
+    public void assertCanPrepareConfirmation(UUID id) {
+        Reservation reservation = reservationRepository.findById(id)
+                .orElseThrow(ReservationNotFoundException::new);
+        if (reservation.getStatus() != ReservationStatus.ACTIVE) {
+            throw new ReservationStateConflictException("Only active reservations can be confirmed");
+        }
+        requireOwnerOrWorkspaceAdmin(reservation);
+    }
+
     @Transactional
     @PreAuthorize("hasAnyRole('EMPLOYEE', 'WORKSPACE_ADMIN')")
     @AuditReservationMutation(action = "CANCEL")
@@ -129,11 +140,7 @@ public class ReservationService {
             throw new ReservationStateConflictException("Reservation has already ended");
         }
 
-        String subject = requireSubject();
-        boolean owner = subject.equals(reservation.getUserId());
-        if (!owner && !currentUserAccessor.isWorkspaceAdmin()) {
-            throw new ReservationForbiddenException();
-        }
+        requireOwnerOrWorkspaceAdmin(reservation);
 
         reservation.setStatus(ReservationStatus.CANCELLED);
         Reservation saved = reservationRepository.save(reservation);
@@ -155,5 +162,13 @@ public class ReservationService {
     private String requireSubject() {
         return currentUserAccessor.getSubject()
                 .orElseThrow(() -> new IllegalStateException("Authenticated subject is required"));
+    }
+
+    private void requireOwnerOrWorkspaceAdmin(Reservation reservation) {
+        String subject = requireSubject();
+        boolean owner = subject.equals(reservation.getUserId());
+        if (!owner && !currentUserAccessor.isWorkspaceAdmin()) {
+            throw new ReservationForbiddenException();
+        }
     }
 }

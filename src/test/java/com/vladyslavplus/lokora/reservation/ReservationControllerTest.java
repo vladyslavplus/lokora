@@ -3,6 +3,9 @@ package com.vladyslavplus.lokora.reservation;
 import com.vladyslavplus.lokora.common.api.GlobalExceptionHandler;
 import com.vladyslavplus.lokora.common.exception.ReservationOverlapException;
 import com.vladyslavplus.lokora.common.exception.ReservationNotFoundException;
+import com.vladyslavplus.lokora.reservation.async.ReservationConfirmationService;
+import com.vladyslavplus.lokora.reservation.dto.ConfirmationStepResult;
+import com.vladyslavplus.lokora.reservation.dto.ReservationConfirmationResponse;
 import com.vladyslavplus.lokora.reservation.dto.ReservationCreateRequest;
 import com.vladyslavplus.lokora.reservation.dto.ReservationPageResponse;
 import com.vladyslavplus.lokora.reservation.dto.ReservationResponse;
@@ -20,11 +23,14 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.SpringValidatorAdapter;
+import org.springframework.core.task.TaskRejectedException;
+import org.springframework.test.web.servlet.MvcResult;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.hamcrest.Matchers.containsString;
@@ -33,6 +39,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -45,6 +53,9 @@ class ReservationControllerTest {
 
     @Mock
     private ReservationService reservationService;
+
+    @Mock
+    private ReservationConfirmationService confirmationService;
 
     private MockMvc mockMvc;
 
@@ -61,7 +72,7 @@ class ReservationControllerTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new ReservationController(reservationService))
+        mockMvc = MockMvcBuilders.standaloneSetup(new ReservationController(reservationService, confirmationService))
                 .setControllerAdvice(new GlobalExceptionHandler(Clock.systemUTC()))
                 .setValidator(new SpringValidatorAdapter(validator))
                 .build();
@@ -148,5 +159,37 @@ class ReservationControllerTest {
         mockMvc.perform(post("/api/reservations/{id}/cancel", id))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
+    }
+
+    @Test
+    void confirmationRouteReturnsCombinedAsyncResult() throws Exception {
+        UUID id = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        ReservationConfirmationResponse response = new ReservationConfirmationResponse(
+                id,
+                ConfirmationStepResult.completed("calendarSync"),
+                ConfirmationStepResult.completed("accessPreparation")
+        );
+        when(confirmationService.prepare(id)).thenReturn(CompletableFuture.completedFuture(response));
+
+        MvcResult result = mockMvc.perform(post("/api/reservations/{id}/confirmation", id))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        mockMvc.perform(asyncDispatch(result))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.reservationId").value(id.toString()))
+                .andExpect(jsonPath("$.calendarSync.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.accessPreparation.status").value("COMPLETED"));
+    }
+
+    @Test
+    void confirmationRouteMapsExecutorRejectionTo503() throws Exception {
+        UUID id = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        when(confirmationService.prepare(id)).thenThrow(new TaskRejectedException("executor full"));
+
+        mockMvc.perform(post("/api/reservations/{id}/confirmation", id))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(header().string("Retry-After", "5"))
+                .andExpect(jsonPath("$.code").value("ASYNC_CAPACITY_EXCEEDED"));
     }
 }

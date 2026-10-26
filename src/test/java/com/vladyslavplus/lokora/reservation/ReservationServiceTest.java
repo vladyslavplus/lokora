@@ -460,6 +460,51 @@ class ReservationServiceTest {
         verify(reservationRepository, never()).save(any());
     }
 
+    @Test
+    void confirmationAccessAllowsReservationOwner() {
+        Reservation reservation = activeReservation(USER_SUBJECT, FIXED_NOW.plusSeconds(3600), FIXED_NOW.plusSeconds(7200));
+        when(reservationRepository.findById(RESERVATION_ID)).thenReturn(Optional.of(reservation));
+        when(currentUserAccessor.getSubject()).thenReturn(Optional.of(USER_SUBJECT));
+
+        service.assertCanPrepareConfirmation(RESERVATION_ID);
+
+        verify(currentUserAccessor, never()).isWorkspaceAdmin();
+    }
+
+    @Test
+    void confirmationAccessAllowsWorkspaceAdmin() {
+        Reservation reservation = activeReservation("another-employee", FIXED_NOW.plusSeconds(3600), FIXED_NOW.plusSeconds(7200));
+        when(reservationRepository.findById(RESERVATION_ID)).thenReturn(Optional.of(reservation));
+        when(currentUserAccessor.getSubject()).thenReturn(Optional.of(USER_SUBJECT));
+        when(currentUserAccessor.isWorkspaceAdmin()).thenReturn(true);
+
+        service.assertCanPrepareConfirmation(RESERVATION_ID);
+
+        verify(currentUserAccessor).isWorkspaceAdmin();
+    }
+
+    @Test
+    void confirmationAccessRejectsAnotherEmployeesReservation() {
+        Reservation reservation = activeReservation("another-employee", FIXED_NOW.plusSeconds(3600), FIXED_NOW.plusSeconds(7200));
+        when(reservationRepository.findById(RESERVATION_ID)).thenReturn(Optional.of(reservation));
+        when(currentUserAccessor.getSubject()).thenReturn(Optional.of(USER_SUBJECT));
+        when(currentUserAccessor.isWorkspaceAdmin()).thenReturn(false);
+
+        assertThatThrownBy(() -> service.assertCanPrepareConfirmation(RESERVATION_ID))
+                .isInstanceOf(ReservationForbiddenException.class);
+    }
+
+    @Test
+    void confirmationAccessRejectsCancelledReservation() {
+        Reservation reservation = activeReservation(USER_SUBJECT, FIXED_NOW.plusSeconds(3600), FIXED_NOW.plusSeconds(7200));
+        reservation.setStatus(ReservationStatus.CANCELLED);
+        when(reservationRepository.findById(RESERVATION_ID)).thenReturn(Optional.of(reservation));
+
+        assertThatThrownBy(() -> service.assertCanPrepareConfirmation(RESERVATION_ID))
+                .isInstanceOf(ReservationStateConflictException.class)
+                .hasMessage("Only active reservations can be confirmed");
+    }
+
     private ReservationCreateRequest createRequest(Instant start, Instant end) {
         return new ReservationCreateRequest(RESOURCE_ID, start, end);
     }

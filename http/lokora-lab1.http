@@ -127,6 +127,10 @@ Content-Type: application/json
   "endTime": "{{adjacentEndTime}}"
 }
 
+### Async confirmation: owner receives combined calendar/access results (200)
+POST {{host}}/api/reservations/{{reservationId}}/confirmation
+Authorization: Bearer {{employeeToken}}
+
 ### Invalid zero-length interval (400)
 POST {{host}}/api/reservations
 Authorization: Bearer {{employeeToken}}

@@ -10,12 +10,14 @@ import com.vladyslavplus.lokora.common.exception.ResourceNotFoundException;
 import com.vladyslavplus.lokora.common.exception.ResourceUnavailableForReservationException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.core.task.TaskRejectedException;
 
 import java.time.Clock;
 import java.util.stream.Collectors;
@@ -94,6 +96,21 @@ public class GlobalExceptionHandler {
                 .body(new ApiErrorResponse(
                         "FORBIDDEN",
                         exception.getMessage(),
+                        clock.instant(),
+                        request.getRequestURI()
+                ));
+    }
+
+    @ExceptionHandler(TaskRejectedException.class)
+    public ResponseEntity<ApiErrorResponse> handleAsyncCapacityExceeded(
+            TaskRejectedException exception,
+            HttpServletRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header(HttpHeaders.RETRY_AFTER, "5")
+                .body(new ApiErrorResponse(
+                        "ASYNC_CAPACITY_EXCEEDED",
+                        "Async processing capacity is full. Try again later.",
                         clock.instant(),
                         request.getRequestURI()
                 ));

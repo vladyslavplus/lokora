@@ -3,6 +3,9 @@ package com.vladyslavplus.lokora.reservation;
 import com.vladyslavplus.lokora.reservation.dto.ReservationPageResponse;
 import com.vladyslavplus.lokora.resource.WorkspaceResourceService;
 import com.vladyslavplus.lokora.reservation.dto.ReservationResponse;
+import com.vladyslavplus.lokora.reservation.dto.ReservationConfirmationResponse;
+import com.vladyslavplus.lokora.reservation.dto.ConfirmationStepResult;
+import com.vladyslavplus.lokora.reservation.async.ReservationConfirmationService;
 import com.vladyslavplus.lokora.support.ApiSecurityTestApplication;
 import com.vladyslavplus.lokora.support.OAuth2TestClientConfiguration;
 import org.junit.jupiter.api.Test;
@@ -14,16 +17,21 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 
 @SpringBootTest(classes = ApiSecurityTestApplication.class)
 @AutoConfigureMockMvc
@@ -42,6 +50,9 @@ class ReservationSecurityTest {
 
     @MockitoBean
     private ReservationService reservationService;
+
+    @MockitoBean
+    private ReservationConfirmationService confirmationService;
 
     @MockitoBean
     private WorkspaceResourceService workspaceResourceService;
@@ -89,5 +100,41 @@ class ReservationSecurityTest {
                                 }
                                 """))
                 .andExpect(status().isCreated());
+    }
+
+    @Test
+    void unauthenticatedConfirmationRequestReturns401() throws Exception {
+        mockMvc.perform(post("/api/reservations/{id}/confirmation", UUID.randomUUID()))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void employeeCanRequestCombinedConfirmation() throws Exception {
+        UUID id = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        when(confirmationService.prepare(id)).thenReturn(CompletableFuture.completedFuture(
+                new ReservationConfirmationResponse(
+                        id,
+                        ConfirmationStepResult.completed("calendarSync"),
+                        ConfirmationStepResult.completed("accessPreparation")
+                )
+        ));
+
+        MvcResult result = mockMvc.perform(post("/api/reservations/{id}/confirmation", id)
+                        .with(jwt().jwt(token -> token.subject("employee-1"))
+                                .authorities(() -> "ROLE_EMPLOYEE")))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        mockMvc.perform(asyncDispatch(result))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.calendarSync.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.accessPreparation.status").value("COMPLETED"));
+    }
+
+    @Test
+    void authenticatedTokenWithoutLokoraRoleCannotRequestConfirmation() throws Exception {
+        mockMvc.perform(post("/api/reservations/{id}/confirmation", UUID.randomUUID())
+                        .with(jwt().authorities(() -> "SCOPE_openid")))
+                .andExpect(status().isForbidden());
     }
 }
