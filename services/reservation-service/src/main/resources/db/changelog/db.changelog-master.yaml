@@ -1,0 +1,80 @@
+databaseChangeLog:
+  - changeSet:
+      id: reservation-service-schema
+      author: lokora
+      changes:
+        - sql:
+            dbms: postgresql
+            sql: CREATE SCHEMA IF NOT EXISTS reservation_service;
+  - changeSet:
+      id: reservation-service-create-table
+      author: lokora
+      changes:
+        - sql:
+            dbms: postgresql
+            sql: >
+              CREATE TABLE IF NOT EXISTS reservation_service.reservation (
+                id UUID PRIMARY KEY,
+                resource_id UUID NOT NULL,
+                user_id VARCHAR(255) NOT NULL,
+                start_time TIMESTAMPTZ NOT NULL,
+                end_time TIMESTAMPTZ NOT NULL,
+                status VARCHAR(32) NOT NULL,
+                CONSTRAINT chk_reservation_time_range CHECK (start_time < end_time),
+                CONSTRAINT chk_reservation_status CHECK (status IN ('ACTIVE', 'CANCELLED', 'COMPLETED'))
+              );
+        - sql:
+            dbms: postgresql
+            sql: CREATE INDEX IF NOT EXISTS idx_reservation_resource_active_window ON reservation_service.reservation (resource_id, status, start_time, end_time);
+        - sql:
+            dbms: postgresql
+            sql: CREATE INDEX IF NOT EXISTS idx_reservation_user_start ON reservation_service.reservation (user_id, start_time);
+  - changeSet:
+      id: reservation-service-copy-legacy-data
+      author: lokora
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              DO $$
+              BEGIN
+                IF to_regclass('public.reservation') IS NOT NULL THEN
+                  INSERT INTO reservation_service.reservation (id, resource_id, user_id, start_time, end_time, status)
+                  SELECT id, resource_id, user_id, start_time, end_time, status FROM public.reservation
+                  ON CONFLICT (id) DO NOTHING;
+                END IF;
+              END $$;
+  - changeSet:
+      id: reservation-service-create-quartz-schema
+      author: lokora
+      changes:
+        - sqlFile:
+            path: changes/004-create-quartz-schema.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: true
+  - changeSet:
+      id: reservation-service-copy-legacy-quartz-data
+      author: lokora
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              DO $$
+              DECLARE quartz_table TEXT;
+              BEGIN
+                FOREACH quartz_table IN ARRAY ARRAY[
+                  'qrtz_job_details', 'qrtz_triggers', 'qrtz_simple_triggers', 'qrtz_cron_triggers',
+                  'qrtz_simprop_triggers', 'qrtz_blob_triggers', 'qrtz_calendars',
+                  'qrtz_paused_trigger_grps', 'qrtz_fired_triggers', 'qrtz_scheduler_state', 'qrtz_locks'
+                ] LOOP
+                  IF to_regclass('public.' || quote_ident(quartz_table)) IS NOT NULL THEN
+                    EXECUTE format(
+                      'INSERT INTO reservation_service.%I SELECT * FROM public.%I ON CONFLICT DO NOTHING',
+                      quartz_table, quartz_table
+                    );
+                  END IF;
+                END LOOP;
+              END $$;

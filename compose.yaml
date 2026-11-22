@@ -27,6 +27,7 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       KC_HEALTH_ENABLED: "true"
+      KC_HOSTNAME: http://localhost:8180
     ports:
       - "8180:8180"
     volumes:
@@ -34,12 +35,77 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200'"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 60s
+
+  resource-service:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: services/resource-service/Dockerfile
+    environment:
+      SERVER_PORT: 8081
+      RESOURCE_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-lokora}?currentSchema=resource_service&options=-c%20timezone=UTC
+      RESOURCE_DATASOURCE_USERNAME: ${POSTGRES_USER:-lokora}
+      RESOURCE_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-lokora}
+      LOKORA_OIDC_CLIENT_ID: ${LOKORA_OIDC_CLIENT_ID:-lokora-app}
+      LOKORA_ISSUER_URI: http://localhost:8180/realms/lokora
+      LOKORA_JWK_SET_URI: http://keycloak:8180/realms/lokora/protocol/openid-connect/certs
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+
+  reservation-service:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: services/reservation-service/Dockerfile
+    environment:
+      SERVER_PORT: 8082
+      RESERVATION_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-lokora}?currentSchema=reservation_service&options=-c%20timezone=UTC
+      RESERVATION_DATASOURCE_USERNAME: ${POSTGRES_USER:-lokora}
+      RESERVATION_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-lokora}
+      LOKORA_OIDC_CLIENT_ID: ${LOKORA_OIDC_CLIENT_ID:-lokora-app}
+      LOKORA_ISSUER_URI: http://localhost:8180/realms/lokora
+      LOKORA_JWK_SET_URI: http://keycloak:8180/realms/lokora/protocol/openid-connect/certs
+      LOKORA_RESOURCE_SERVICE_URL: http://resource-service:8081
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+      resource-service:
+        condition: service_started
+
+  lokora-web:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: apps/lokora-web/Dockerfile
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      SERVER_PORT: 8080
+      LOKORA_OIDC_CLIENT_ID: ${LOKORA_OIDC_CLIENT_ID:-lokora-app}
+      LOKORA_ISSUER_URI: http://localhost:8180/realms/lokora
+      LOKORA_JWK_SET_URI: http://keycloak:8180/realms/lokora/protocol/openid-connect/certs
+      LOKORA_OIDC_AUTHORIZATION_URI: http://localhost:8180/realms/lokora/protocol/openid-connect/auth
+      LOKORA_OIDC_TOKEN_URI: http://keycloak:8180/realms/lokora/protocol/openid-connect/token
+      LOKORA_OIDC_USER_INFO_URI: http://keycloak:8180/realms/lokora/protocol/openid-connect/userinfo
+      LOKORA_RESOURCE_SERVICE_URL: http://resource-service:8081
+      LOKORA_RESERVATION_SERVICE_URL: http://reservation-service:8082
+    ports:
+      - "8080:8080"
+    depends_on:
+      resource-service:
+        condition: service_started
+      reservation-service:
+        condition: service_started
 
 volumes:
   lokora_pg_data:

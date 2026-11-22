@@ -1,0 +1,42 @@
+databaseChangeLog:
+  - changeSet:
+      id: resource-service-schema
+      author: lokora
+      changes:
+        - sql:
+            dbms: postgresql
+            sql: CREATE SCHEMA IF NOT EXISTS resource_service;
+  - changeSet:
+      id: resource-service-create-table
+      author: lokora
+      changes:
+        - sql:
+            dbms: postgresql
+            sql: >
+              CREATE TABLE IF NOT EXISTS resource_service.workspace_resource (
+                id UUID PRIMARY KEY,
+                name VARCHAR(120) NOT NULL,
+                type VARCHAR(32) NOT NULL,
+                location VARCHAR(200) NOT NULL,
+                status VARCHAR(32) NOT NULL,
+                capacity INTEGER NOT NULL,
+                CONSTRAINT chk_workspace_resource_capacity CHECK (capacity > 0),
+                CONSTRAINT chk_workspace_resource_type CHECK (type IN ('DESK', 'MEETING_ROOM', 'PARKING_SPOT', 'EQUIPMENT')),
+                CONSTRAINT chk_workspace_resource_status CHECK (status IN ('AVAILABLE', 'MAINTENANCE', 'OUT_OF_SERVICE'))
+              );
+  - changeSet:
+      id: resource-service-copy-legacy-data
+      author: lokora
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              DO $$
+              BEGIN
+                IF to_regclass('public.workspace_resource') IS NOT NULL THEN
+                  INSERT INTO resource_service.workspace_resource (id, name, type, location, status, capacity)
+                  SELECT id, name, type, location, status, capacity FROM public.workspace_resource
+                  ON CONFLICT (id) DO NOTHING;
+                END IF;
+              END $$;

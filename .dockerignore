@@ -1,0 +1,11 @@
+.git
+.env
+.env.*
+!.env.example
+**/target
+**/*.private.env.json
+**/*.local
+config/keycloak/lokora-realm.local.json
+http/http-client.private.env.json
+tmp
+logs

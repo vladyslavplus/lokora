@@ -38,7 +38,8 @@
       "enabled": true,
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [
-        "http://localhost:8080/login/oauth2/code/keycloak"
+        "http://localhost:8080/login/oauth2/code/keycloak",
+        "http://localhost:9876/login/oauth2/code/lokora-app"
       ],
       "webOrigins": [
         "http://localhost:8080"
