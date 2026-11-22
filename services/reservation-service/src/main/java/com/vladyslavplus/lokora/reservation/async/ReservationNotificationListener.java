@@ -1,5 +1,6 @@
 package com.vladyslavplus.lokora.reservation.async;
 
+import com.vladyslavplus.lokora.reservation.ReservationStatus;
 import com.vladyslavplus.lokora.reservation.event.ReservationOutcomeEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +21,9 @@ public class ReservationNotificationListener {
 
     @EventListener
     public void onReservationOutcome(ReservationOutcomeEvent event) {
+        if (event.status() == ReservationStatus.COMPLETED) {
+            return;
+        }
         try {
             asyncTasks.sendConfirmationNotice(event);
         } catch (TaskRejectedException rejected) {

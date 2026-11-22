@@ -1,0 +1,40 @@
+### Lab 8: reservation events through RabbitMQ.
+### Producer: reservation-service (via the web app on 8080). Consumer: notification-service (8083).
+### RabbitMQ management UI: http://localhost:15672 (queue notification-service.reservation-events).
+
+### 1. Business action: create a reservation (201). The producer publishes RESERVATION CREATED after commit.
+POST {{host}}/api/reservations
+Authorization: Bearer {{employeeToken}}
+Content-Type: application/json
+
+{
+  "resourceId": "{{resourceId}}",
+  "startTime": "{{startTime}}",
+  "endTime": "{{endTime}}"
+}
+
+### 2. Result of the consumer: one stored notification per event (200). No HTTP call between the two services.
+GET {{notificationHost}}/api/notifications
+Authorization: Bearer {{employeeToken}}
+
+### 3. Business action: cancel the reservation (copy its id to reservationId). Publishes CANCELLED.
+POST {{host}}/api/reservations/{{reservationId}}/cancel
+Authorization: Bearer {{employeeToken}}
+
+### 4. Negative: overlapping reservation fails (409) and publishes no event.
+POST {{host}}/api/reservations
+Authorization: Bearer {{employeeToken}}
+Content-Type: application/json
+
+{
+  "resourceId": "{{resourceId}}",
+  "startTime": "{{startTime}}",
+  "endTime": "{{endTime}}"
+}
+
+### 5. Negative: no token (401)
+GET {{notificationHost}}/api/notifications
+
+### Scenario 4 (consumer stopped): docker compose stop notification-service, run steps 1 and 3 (both succeed),
+### the queue keeps 2 messages, then docker compose start notification-service and repeat step 2.
+### The third event, COMPLETED, is produced by the Quartz expired-reservation cleanup after a reservation ends.

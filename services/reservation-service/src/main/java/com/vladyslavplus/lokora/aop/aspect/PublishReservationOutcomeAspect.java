@@ -1,27 +1,22 @@
 package com.vladyslavplus.lokora.aop.aspect;
 
 import com.vladyslavplus.lokora.aop.annotation.PublishReservationOutcome;
-import com.vladyslavplus.lokora.reservation.event.ReservationOutcomeEvent;
 import com.vladyslavplus.lokora.reservation.dto.ReservationResponse;
+import com.vladyslavplus.lokora.reservation.event.AfterCommitEventPublisher;
+import com.vladyslavplus.lokora.reservation.event.ReservationOutcomeEvent;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.AfterReturning;
 import org.aspectj.lang.annotation.Aspect;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Aspect
 @Component
 public class PublishReservationOutcomeAspect {
 
-    private static final Logger logger = LoggerFactory.getLogger(PublishReservationOutcomeAspect.class);
-    private final ApplicationEventPublisher eventPublisher;
+    private final AfterCommitEventPublisher afterCommitEventPublisher;
 
-    public PublishReservationOutcomeAspect(ApplicationEventPublisher eventPublisher) {
-        this.eventPublisher = eventPublisher;
+    public PublishReservationOutcomeAspect(AfterCommitEventPublisher afterCommitEventPublisher) {
+        this.afterCommitEventPublisher = afterCommitEventPublisher;
     }
 
     @AfterReturning(pointcut = "@annotation(publishOutcome)", returning = "result")
@@ -34,35 +29,14 @@ public class PublishReservationOutcomeAspect {
             return;
         }
 
-        ReservationOutcomeEvent event = new ReservationOutcomeEvent(
+        afterCommitEventPublisher.publish(new ReservationOutcomeEvent(
                 publishOutcome.action(),
                 response.id(),
                 response.resourceId(),
-                response.status()
-        );
-        publishAfterCommit(event);
-    }
-
-    private void publishAfterCommit(ReservationOutcomeEvent event) {
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            eventPublisher.publishEvent(event);
-            return;
-        }
-
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                publishSafely(event);
-            }
-        });
-    }
-
-    private void publishSafely(ReservationOutcomeEvent event) {
-        try {
-            eventPublisher.publishEvent(event);
-        } catch (RuntimeException failure) {
-            logger.error("Reservation outcome event publication failed: action={} reservationId={}",
-                    event.action(), event.reservationId(), failure);
-        }
+                response.status(),
+                response.userId(),
+                response.startTime(),
+                response.endTime()
+        ));
     }
 }

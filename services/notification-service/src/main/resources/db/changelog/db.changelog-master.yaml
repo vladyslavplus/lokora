@@ -1,0 +1,30 @@
+databaseChangeLog:
+  - changeSet:
+      id: notification-service-schema
+      author: lokora
+      changes:
+        - sql:
+            dbms: postgresql
+            sql: CREATE SCHEMA IF NOT EXISTS notification_service;
+  - changeSet:
+      id: notification-service-create-notification
+      author: lokora
+      changes:
+        - sql:
+            dbms: postgresql
+            sql: >
+              CREATE TABLE notification_service.notification (
+                id UUID PRIMARY KEY,
+                event_id UUID NOT NULL,
+                event_type VARCHAR(32) NOT NULL,
+                reservation_id UUID NOT NULL,
+                resource_id UUID NOT NULL,
+                user_id VARCHAR(255) NOT NULL,
+                message VARCHAR(500) NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL,
+                CONSTRAINT uq_notification_event_id UNIQUE (event_id),
+                CONSTRAINT chk_notification_event_type CHECK (event_type IN ('CREATED', 'CANCELLED', 'COMPLETED'))
+              );
+        - sql:
+            dbms: postgresql
+            sql: CREATE INDEX idx_notification_user_created ON notification_service.notification (user_id, created_at DESC, id DESC);

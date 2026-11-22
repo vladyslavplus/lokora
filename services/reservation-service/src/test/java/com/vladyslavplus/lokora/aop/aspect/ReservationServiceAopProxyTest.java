@@ -11,6 +11,7 @@ import com.vladyslavplus.lokora.reservation.ReservationService;
 import com.vladyslavplus.lokora.reservation.ReservationStatus;
 import com.vladyslavplus.lokora.reservation.dto.ReservationCreateRequest;
 import com.vladyslavplus.lokora.reservation.dto.ReservationResponse;
+import com.vladyslavplus.lokora.reservation.event.AfterCommitEventPublisher;
 import com.vladyslavplus.lokora.reservation.event.ReservationOutcomeEvent;
 import com.vladyslavplus.lokora.security.CurrentUserAccessor;
 import org.junit.jupiter.api.AfterEach;
@@ -98,7 +99,7 @@ class ReservationServiceAopProxyTest {
         AspectJProxyFactory proxyFactory = new AspectJProxyFactory(target);
         proxyFactory.addAspect(new MeasureExecutionTimeAspect());
         proxyFactory.addAspect(new AuditReservationMutationAspect());
-        proxyFactory.addAspect(new PublishReservationOutcomeAspect(eventPublisher));
+        proxyFactory.addAspect(new PublishReservationOutcomeAspect(new AfterCommitEventPublisher(eventPublisher)));
 
         ReservationService proxy = proxyFactory.getProxy();
         ReservationResponse result = proxy.create(new ReservationCreateRequest(RESOURCE_ID, START, END));
@@ -111,7 +112,7 @@ class ReservationServiceAopProxyTest {
                 .contains("action=CREATE", "outcome=success", RESERVATION_ID.toString(), RESOURCE_ID.toString())
                 .doesNotContain("employee-subject");
         verify(eventPublisher).publishEvent(new ReservationOutcomeEvent(
-                "CREATED", RESERVATION_ID, RESOURCE_ID, ReservationStatus.ACTIVE
+                "CREATED", RESERVATION_ID, RESOURCE_ID, ReservationStatus.ACTIVE, "employee-subject", START, END
         ));
     }
 }

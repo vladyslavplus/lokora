@@ -3,6 +3,7 @@ package com.vladyslavplus.lokora.aop.aspect;
 import com.vladyslavplus.lokora.aop.annotation.PublishReservationOutcome;
 import com.vladyslavplus.lokora.reservation.ReservationStatus;
 import com.vladyslavplus.lokora.reservation.dto.ReservationResponse;
+import com.vladyslavplus.lokora.reservation.event.AfterCommitEventPublisher;
 import com.vladyslavplus.lokora.reservation.event.ReservationOutcomeEvent;
 import org.aspectj.lang.JoinPoint;
 import org.junit.jupiter.api.AfterEach;
@@ -27,7 +28,7 @@ class PublishReservationOutcomeAspectTest {
     private static final UUID RESOURCE_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
 
     private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
-    private final PublishReservationOutcomeAspect aspect = new PublishReservationOutcomeAspect(eventPublisher);
+    private final PublishReservationOutcomeAspect aspect = new PublishReservationOutcomeAspect(new AfterCommitEventPublisher(eventPublisher));
     private final JoinPoint joinPoint = mock(JoinPoint.class);
     private final PublishReservationOutcome annotation = new AnnotatedMethods().getClass()
             .getDeclaredMethods()[0].getAnnotation(PublishReservationOutcome.class);
@@ -43,9 +44,7 @@ class PublishReservationOutcomeAspectTest {
     void publishesTypedEventWhenNoTransactionIsActive() {
         aspect.publishAfterSuccess(joinPoint, annotation, response());
 
-        verify(eventPublisher).publishEvent(new ReservationOutcomeEvent(
-                "CREATED", RESERVATION_ID, RESOURCE_ID, ReservationStatus.ACTIVE
-        ));
+        verify(eventPublisher).publishEvent(expectedEvent());
     }
 
     @Test
@@ -58,9 +57,7 @@ class PublishReservationOutcomeAspectTest {
         assertThat(TransactionSynchronizationManager.getSynchronizations()).hasSize(1);
         TransactionSynchronizationManager.getSynchronizations().getFirst().afterCommit();
 
-        verify(eventPublisher).publishEvent(new ReservationOutcomeEvent(
-                "CREATED", RESERVATION_ID, RESOURCE_ID, ReservationStatus.ACTIVE
-        ));
+        verify(eventPublisher).publishEvent(expectedEvent());
     }
 
     @Test
@@ -80,6 +77,18 @@ class PublishReservationOutcomeAspectTest {
 
         assertThat(TransactionSynchronizationManager.getSynchronizations()).hasSize(1);
         TransactionSynchronizationManager.getSynchronizations().getFirst().afterCommit();
+    }
+
+    private ReservationOutcomeEvent expectedEvent() {
+        return new ReservationOutcomeEvent(
+                "CREATED",
+                RESERVATION_ID,
+                RESOURCE_ID,
+                ReservationStatus.ACTIVE,
+                "employee-subject",
+                Instant.parse("2026-10-10T10:00:00Z"),
+                Instant.parse("2026-10-10T11:00:00Z")
+        );
     }
 
     private ReservationResponse response() {

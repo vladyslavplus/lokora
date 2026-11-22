@@ -36,6 +36,23 @@ services:
       postgres:
         condition: service_healthy
 
+  rabbitmq:
+    image: rabbitmq:4-management
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-lokora}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-lokora}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - lokora_rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 6
+      start_period: 20s
+
   resource-service:
     profiles: ["app"]
     build:
@@ -71,6 +88,10 @@ services:
       LOKORA_ISSUER_URI: http://localhost:8180/realms/lokora
       LOKORA_JWK_SET_URI: http://keycloak:8180/realms/lokora/protocol/openid-connect/certs
       LOKORA_RESOURCE_SERVICE_URL: http://resource-service:8081
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-lokora}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-lokora}
     ports:
       - "8082:8082"
     depends_on:
@@ -80,6 +101,35 @@ services:
         condition: service_started
       resource-service:
         condition: service_started
+      rabbitmq:
+        condition: service_healthy
+
+  notification-service:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: services/notification-service/Dockerfile
+    environment:
+      SERVER_PORT: 8083
+      NOTIFICATION_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-lokora}?currentSchema=notification_service&options=-c%20timezone=UTC
+      NOTIFICATION_DATASOURCE_USERNAME: ${POSTGRES_USER:-lokora}
+      NOTIFICATION_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-lokora}
+      LOKORA_OIDC_CLIENT_ID: ${LOKORA_OIDC_CLIENT_ID:-lokora-app}
+      LOKORA_ISSUER_URI: http://localhost:8180/realms/lokora
+      LOKORA_JWK_SET_URI: http://keycloak:8180/realms/lokora/protocol/openid-connect/certs
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-lokora}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-lokora}
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
 
   lokora-web:
     profiles: ["app"]
@@ -109,3 +159,4 @@ services:
 
 volumes:
   lokora_pg_data:
+  lokora_rabbitmq_data:

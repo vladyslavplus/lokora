@@ -23,6 +23,7 @@
         <module>common-contracts</module>
         <module>services/resource-service</module>
         <module>services/reservation-service</module>
+        <module>services/notification-service</module>
         <module>apps/lokora-web</module>
     </modules>
     <dependencies>

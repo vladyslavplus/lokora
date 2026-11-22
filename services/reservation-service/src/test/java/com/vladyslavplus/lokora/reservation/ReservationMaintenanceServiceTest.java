@@ -1,8 +1,11 @@
 package com.vladyslavplus.lokora.reservation;
 
+import com.vladyslavplus.lokora.reservation.event.AfterCommitEventPublisher;
+import com.vladyslavplus.lokora.reservation.event.ReservationOutcomeEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageRequest;
@@ -32,12 +35,16 @@ class ReservationMaintenanceServiceTest {
     @Mock
     private ReservationRepository reservationRepository;
 
+    @Mock
+    private AfterCommitEventPublisher afterCommitEventPublisher;
+
     private ReservationMaintenanceService service;
 
     @BeforeEach
     void setUp() {
         service = new ReservationMaintenanceService(
                 reservationRepository,
+                afterCommitEventPublisher,
                 Clock.fixed(FIXED_NOW, ZoneOffset.UTC),
                 new QuartzTimeZoneResolver(),
                 "Europe/Kyiv"
@@ -58,6 +65,37 @@ class ReservationMaintenanceServiceTest {
         assertThat(secondRun).isZero();
         assertThat(expired.getStatus()).isEqualTo(ReservationStatus.COMPLETED);
         verify(reservationRepository, times(2)).findExpiredActiveReservations(FIXED_NOW, PageRequest.of(0, 50));
+    }
+
+    @Test
+    void cleanupPublishesOneCompletedEventPerClosedReservation() {
+        Reservation expired = reservation(ReservationStatus.ACTIVE);
+        when(reservationRepository.findExpiredActiveReservations(eq(FIXED_NOW), any(Pageable.class)))
+                .thenReturn(List.of(expired));
+
+        service.completeExpiredReservations(50);
+
+        ArgumentCaptor<ReservationOutcomeEvent> captor = ArgumentCaptor.forClass(ReservationOutcomeEvent.class);
+        verify(afterCommitEventPublisher).publish(captor.capture());
+        assertThat(captor.getValue()).isEqualTo(new ReservationOutcomeEvent(
+                "COMPLETED",
+                expired.getId(),
+                expired.getResourceId(),
+                ReservationStatus.COMPLETED,
+                "employee-subject",
+                expired.getStartTime(),
+                expired.getEndTime()
+        ));
+    }
+
+    @Test
+    void cleanupWithNothingExpiredPublishesNoEvents() {
+        when(reservationRepository.findExpiredActiveReservations(eq(FIXED_NOW), any(Pageable.class)))
+                .thenReturn(List.of());
+
+        service.completeExpiredReservations(50);
+
+        verify(afterCommitEventPublisher, never()).publish(any());
     }
 
     @Test
@@ -103,7 +141,10 @@ class ReservationMaintenanceServiceTest {
     private Reservation reservation(ReservationStatus status) {
         Reservation reservation = new Reservation();
         reservation.setId(UUID.fromString("22222222-2222-2222-2222-222222222222"));
+        reservation.setResourceId(UUID.fromString("11111111-1111-1111-1111-111111111111"));
+        reservation.setUserId("employee-subject");
         reservation.setStatus(status);
+        reservation.setStartTime(FIXED_NOW.minusSeconds(3630));
         reservation.setEndTime(FIXED_NOW.minusSeconds(30));
         return reservation;
     }

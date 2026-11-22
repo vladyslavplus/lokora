@@ -1,5 +1,7 @@
 package com.vladyslavplus.lokora.reservation;
 
+import com.vladyslavplus.lokora.reservation.event.AfterCommitEventPublisher;
+import com.vladyslavplus.lokora.reservation.event.ReservationOutcomeEvent;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -18,16 +20,19 @@ public class ReservationMaintenanceService {
     public static final int MAX_REPORT_WINDOW_DAYS = 31;
 
     private final ReservationRepository reservationRepository;
+    private final AfterCommitEventPublisher afterCommitEventPublisher;
     private final Clock clock;
     private final ZoneId reportZone;
 
     public ReservationMaintenanceService(
             ReservationRepository reservationRepository,
+            AfterCommitEventPublisher afterCommitEventPublisher,
             Clock clock,
             QuartzTimeZoneResolver timeZoneResolver,
             @Value("${lokora.quartz.time-zone:Europe/Kyiv}") String configuredTimeZone
     ) {
         this.reservationRepository = reservationRepository;
+        this.afterCommitEventPublisher = afterCommitEventPublisher;
         this.clock = clock;
         this.reportZone = timeZoneResolver.resolve(configuredTimeZone);
     }
@@ -41,7 +46,18 @@ public class ReservationMaintenanceService {
         List<Reservation> expiredReservations = reservationRepository.findExpiredActiveReservations(
                 clock.instant(), PageRequest.of(0, batchSize)
         );
-        expiredReservations.forEach(reservation -> reservation.setStatus(ReservationStatus.COMPLETED));
+        for (Reservation reservation : expiredReservations) {
+            reservation.setStatus(ReservationStatus.COMPLETED);
+            afterCommitEventPublisher.publish(new ReservationOutcomeEvent(
+                    "COMPLETED",
+                    reservation.getId(),
+                    reservation.getResourceId(),
+                    reservation.getStatus(),
+                    reservation.getUserId(),
+                    reservation.getStartTime(),
+                    reservation.getEndTime()
+            ));
+        }
         return expiredReservations.size();
     }
 

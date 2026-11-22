@@ -32,7 +32,10 @@ class ReservationAsyncTasksTest {
             "CREATED",
             RESERVATION_ID,
             UUID.fromString("11111111-1111-1111-1111-111111111111"),
-            ReservationStatus.ACTIVE
+            ReservationStatus.ACTIVE,
+            "employee-subject",
+            java.time.Instant.parse("2026-10-10T10:00:00Z"),
+            java.time.Instant.parse("2026-10-10T11:00:00Z")
     );
 
     @Test
